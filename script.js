@@ -1,12 +1,7 @@
 const prompt = require('prompt-sync')({sigint: true});
 
-//parameters for the game, height is the number of arrays, width is the length of each array, and hole probability is the likelihood of a hole being at an index.
-const mapHeight = 12;
-const mapWidth = 8;
-const holeProbability = 33;
-
-//defining global variables
 const rand = (num) => { return Math.floor(Math.random() * num)};
+
 const hat = '^';
 const hole = 'O';
 const fieldCharacter = '░';
@@ -22,7 +17,7 @@ class Field {
   static generateField(height, width, percentage) {
     let array = [];
     const hatRow = rand(2) + (height-2);
-    const hatColumn = rand(width);
+    const hatColumn = rand(4) + (width-4);
     for (let x = 0; x < height; x++) {
       let nestedArray = [];
       for (let i = 0; i < width; i++) {
@@ -45,7 +40,7 @@ class Field {
     let position = [0, 0];
     while (gameOver === false) {
       this.print();
-      let move = prompt('Which Way?');
+      let move = prompt('Which Way?').toLowerCase();
       switch (move) {
         case 'd':
         position[0]++;
@@ -60,9 +55,9 @@ class Field {
         position[1]--;
         break;
         default:
-        console.log('Input d, r, u, or l to move.');
+        console.log('Input d, r, u, or l to move (not case sensitive).');
         break;
-        };
+        }
       if (position[0] < 0 || position[1] < 0 || position[0] > numRows-1 || position[1] > numCols-1) {
         gameOver = true;
         console.log('Out of Bounds! You lose.')
@@ -75,7 +70,71 @@ class Field {
       } else { this.field[position[0]][position[1]] = pathCharacter }
     }
   }
+  checkPossibility() {
+    let copiedField = JSON.parse(JSON.stringify(this.field));
+    let start
+    let findStart = copiedField.forEach((ele, dex) => {
+      if (ele.includes(pathCharacter)) {
+        start = [dex, ele.indexOf(pathCharacter)];
+      }
+    });
+
+    let currentPath = start
+    let pathsTaken = [start];
+    let blockedPaths = [];
+    let possiblePaths = [start];
+
+    while (copiedField[currentPath[0]][currentPath[1]] !== hat && possiblePaths.length >= 1) {
+
+      //console.log(`Possible paths list: ${possiblePaths}`)
+      let currentPath = possiblePaths.pop();
+      if (copiedField[currentPath[1]][currentPath[0]] === hat) {
+          //console.log(`Found hat at ${currentPath}`)
+          return true;
+      }
+      //console.log(`Current path is ${currentPath}`)
+      let adjacentPaths = [[currentPath[0]+1, currentPath[1]], [currentPath[0]-1, currentPath[1]], [currentPath[0], currentPath[1]+1], [currentPath[0], currentPath[1]-1]];
+      let existingAdjacents = adjacentPaths.filter(ele=> {
+        if (ele[0] <= copiedField[0].length-1 && ele[1] <= copiedField.length-1 && ele[0] >= 0 && ele[1] >= 0) {
+          return true;
+        } else {return false}
+      })
+      
+      existingAdjacents.forEach(ele => {
+        if (copiedField[ele[1]][ele[0]] === hole) {
+          //copiedField[ele[1]][ele[0]] = 'X';
+          blockedPaths.push(ele);
+        } if (copiedField[ele[1]][ele[0]] === fieldCharacter) {
+          //console.log(`Pushing ${ele} to possiblePaths`)
+          copiedField[ele[1]][ele[0]] = pathCharacter;
+          pathsTaken.push(ele);
+          possiblePaths.push(ele);
+          } if (copiedField[ele[1]][ele[0]] === hat) {
+              pathsTaken.push(ele)
+              possiblePaths.push(ele)
+              //console.log('The adjacent cell is the Hat!')
+          }
+      })
+    } //console.log('Maze is not completable');
+    return false;
+  }
 }
-console.log('Welcome to the find-your-hat maze game! Run this game in the terminal, use u, d, r, and l to navigate through a map to find the ^!')
-const field = new Field(Field.generateField(mapHeight, mapWidth, holeProbability))
+
+//Set maze height, width, and probability of a new hole being generated.
+const height = 12;
+const width = 20;
+const probability = 33;
+//Creates a new maze, if the maze is not completable, auto generates a new maze and tries again. Logs the number of attempts taken to create a beatable maze. 
+const createBeatableMaze = (height, width, probability) => {
+    var field = new Field(Field.generateField(height, width, probability))
+    var count = 1;
+    while (field.checkPossibility() !== true) {
+        console.log(`Initial maze was unbeatable, generating new maze... Triggered ${count} times.`)
+        count++
+        field = new Field(Field.generateField(height, width, probability));
+    } 
+console.log('Welcome to the \'Find Your Hat\' maze game! Navigate the * around the O\'s until you reach the ^ symbol. Use U, D, L, and R to move.');
 field.playGame();
+}
+createBeatableMaze(height, width, probability);
+
